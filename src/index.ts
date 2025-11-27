@@ -19,6 +19,8 @@ export {
   extractTraceIdFromTraceparent,
   extractCorrelationId,
   generateCorrelationId,
+  extractTraceFromServiceBusMessage,
+  injectTraceIntoServiceBusMessage,
   type TraceContext,
 } from './core/trace-context';
 
@@ -31,6 +33,9 @@ export {
   recordException,
   setSpanStatus,
 } from './core/span-utils';
+
+// Re-export logger for convenience (for packages using classic moduleResolution)
+export { createLogger, createChildLogger, logger, type LoggerOptions } from './logger';
 
 // Re-export OpenTelemetry API for convenience
 export { trace, context, SpanStatusCode, SpanKind } from '@opentelemetry/api';
