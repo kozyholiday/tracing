@@ -128,7 +128,7 @@ export function withServiceBusTracing<T = unknown>(
           const attributes: Record<string, string | number | boolean> = {
             'messaging.system': 'servicebus',
             'messaging.operation': 'receive',
-            'messaging.message.id': message.messageId || 'unknown',
+            'messaging.message.id': String(message.messageId || 'unknown'),
           };
 
           if (message.subject) {

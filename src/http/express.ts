@@ -256,8 +256,7 @@ export function createErrorMiddleware(
     err: Error,
     req: Request,
     res: Response,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    next: NextFunction
+    _next: NextFunction
   ): void => {
     // Get trace context for logging
     const context = getCurrentTraceContext();

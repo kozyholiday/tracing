@@ -160,7 +160,9 @@ export function initTracing(config: TracingConfig = {}): void {
 
   // Enable debug logging if requested
   const debugEnabled =
-    config.debug ?? process.env.OTEL_LOG_LEVEL === 'debug' ?? process.env.OTEL_LOG_LEVEL === 'all';
+    config.debug ??
+    (process.env.OTEL_LOG_LEVEL === 'debug' ||
+     process.env.OTEL_LOG_LEVEL === 'all');
   if (debugEnabled) {
     diag.setLogger(new DiagConsoleLogger(), DiagLogLevel.DEBUG);
   }

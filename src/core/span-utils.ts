@@ -99,8 +99,11 @@ export function recordException(
   attributes?: Record<string, string | number | boolean>
 ): void {
   const span = getCurrentSpan();
-  if (span) {
-    span.recordException(error as Error, attributes);
+  if (span && attributes) {
+    span.recordException(error as Error);
+    span.setAttributes(attributes);
+  } else if (span) {
+    span.recordException(error as Error);
   }
 }
 
