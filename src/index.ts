@@ -21,6 +21,7 @@ export {
   generateCorrelationId,
   extractTraceFromServiceBusMessage,
   injectTraceIntoServiceBusMessage,
+  injectTraceHeaders,
   type TraceContext,
 } from './core/trace-context';
 
