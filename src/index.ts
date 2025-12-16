@@ -1,6 +1,6 @@
 /**
  * @kozy/tracing - Core OpenTelemetry Tracing Package
- * 
+ *
  * Reusable tracing library for KozyHoliday microservices with Datadog APM integration.
  * Provides distributed tracing, correlation ID management, and observability for services
  * running on Azure AKS.
@@ -16,6 +16,8 @@ export {
   getCurrentTraceContext,
   setTraceContext,
   runWithTraceContext,
+  runWithExternalTraceContext,
+  createRemoteSpanContext,
   extractTraceIdFromTraceparent,
   extractCorrelationId,
   generateCorrelationId,

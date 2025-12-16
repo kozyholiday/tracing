@@ -1,5 +1,11 @@
 import { AsyncLocalStorage } from 'async_hooks';
-import { trace } from '@opentelemetry/api';
+import {
+  trace,
+  context as otelContext,
+  SpanKind,
+  SpanStatusCode,
+  ROOT_CONTEXT,
+} from '@opentelemetry/api';
 import { randomUUID } from 'crypto';
 
 /**
@@ -56,9 +62,9 @@ const asyncLocalStorage = new AsyncLocalStorage<TraceContext>();
 
 /**
  * Get the current trace context from AsyncLocalStorage and active span
- * 
+ *
  * Automatically includes trace ID and span ID from active OpenTelemetry span if available.
- * 
+ *
  * @example
  * ```typescript
  * const { traceId, spanId, correlationId } = getCurrentTraceContext();
@@ -86,9 +92,9 @@ export function getCurrentTraceContext(): TraceContext {
 
 /**
  * Set trace context for current async execution
- * 
+ *
  * Merges with existing context rather than replacing it.
- * 
+ *
  * @example
  * ```typescript
  * setTraceContext({
@@ -105,10 +111,10 @@ export function setTraceContext(context: Partial<TraceContext>): void {
 
 /**
  * Run function with trace context
- * 
+ *
  * Creates a new AsyncLocalStorage context for the duration of the function.
  * All code executed within the function (including async operations) will have access to this context.
- * 
+ *
  * @example
  * ```typescript
  * await runWithTraceContext(
@@ -129,13 +135,13 @@ export async function runWithTraceContext<T>(
 
 /**
  * Extract trace ID from W3C traceparent header
- * 
+ *
  * W3C Trace Context format: 00-{trace-id}-{parent-id}-{flags}
  * https://www.w3.org/TR/trace-context/
- * 
+ *
  * @param traceparent - W3C traceparent header value
  * @returns Extracted trace ID or undefined
- * 
+ *
  * @example
  * ```typescript
  * const traceId = extractTraceIdFromTraceparent(req.headers.traceparent);
@@ -154,13 +160,13 @@ export function extractTraceIdFromTraceparent(traceparent: string | undefined): 
 
 /**
  * Extract correlation ID from various header formats
- * 
+ *
  * Tries common correlation ID headers:
  * - x-correlation-id (preferred)
  * - x-request-id
  * - x-amzn-trace-id
  * - x-b3-traceid
- * 
+ *
  * @param headers - HTTP headers object
  * @returns Extracted correlation ID or undefined
  */
@@ -187,7 +193,7 @@ export function extractCorrelationId(
 
 /**
  * Generate a new correlation ID (UUID v4)
- * 
+ *
  * @returns New correlation ID
  */
 export function generateCorrelationId(): string {
@@ -196,14 +202,14 @@ export function generateCorrelationId(): string {
 
 /**
  * Inject trace context into HTTP headers for outgoing requests
- * 
+ *
  * Adds:
  * - x-correlation-id: Correlation ID from context
  * - traceparent: W3C trace context (automatically handled by OpenTelemetry instrumentation)
- * 
+ *
  * @param headers - Existing headers object (will be mutated)
  * @returns Updated headers object
- * 
+ *
  * @example
  * ```typescript
  * const headers = { 'content-type': 'application/json' };
@@ -211,9 +217,7 @@ export function generateCorrelationId(): string {
  * // Now headers include x-correlation-id
  * ```
  */
-export function injectTraceHeaders(
-  headers: Record<string, string> = {}
-): Record<string, string> {
+export function injectTraceHeaders(headers: Record<string, string> = {}): Record<string, string> {
   const context = getCurrentTraceContext();
 
   if (context.correlationId) {
@@ -231,9 +235,10 @@ export function injectTraceHeaders(
     const spanContext = activeSpan.spanContext();
     if (spanContext) {
       // W3C Trace Context format
-      headers['traceparent'] = `00-${spanContext.traceId}-${spanContext.spanId}-${
-        spanContext.traceFlags.toString(16).padStart(2, '0')
-      }`;
+      headers['traceparent'] =
+        `00-${spanContext.traceId}-${spanContext.spanId}-${spanContext.traceFlags
+          .toString(16)
+          .padStart(2, '0')}`;
     }
   }
 
@@ -242,15 +247,15 @@ export function injectTraceHeaders(
 
 /**
  * Inject trace context into Azure Service Bus message properties
- * 
+ *
  * Adds:
  * - traceparent: W3C trace context for distributed tracing
  * - correlationId: Correlation ID from context
  * - Other context fields (eventId, eventType, etc.)
- * 
+ *
  * @param properties - Service Bus message application properties (will be mutated)
  * @returns Updated properties object
- * 
+ *
  * @example
  * ```typescript
  * const message = {
@@ -286,9 +291,9 @@ export function injectTraceIntoServiceBusMessage(
   if (activeSpan) {
     const spanContext = activeSpan.spanContext();
     if (spanContext) {
-      properties.traceparent = `00-${spanContext.traceId}-${spanContext.spanId}-${
-        spanContext.traceFlags.toString(16).padStart(2, '0')
-      }`;
+      properties.traceparent = `00-${spanContext.traceId}-${spanContext.spanId}-${spanContext.traceFlags
+        .toString(16)
+        .padStart(2, '0')}`;
       if (spanContext.traceState) {
         properties.tracestate = spanContext.traceState.serialize();
       }
@@ -300,14 +305,14 @@ export function injectTraceIntoServiceBusMessage(
 
 /**
  * Extract trace context from Azure Service Bus message properties
- * 
+ *
  * Extracts:
  * - traceparent: W3C trace context
  * - correlationId
  * - eventId
  * - eventType
  * - userId
- * 
+ *
  * @param properties - Service Bus message application properties
  * @returns Extracted trace context
  */
@@ -321,6 +326,147 @@ export function extractTraceFromServiceBusMessage(
     eventType: properties.eventType as string,
     userId: properties.userId as string,
   };
+}
+
+/**
+ * Create a remote span context from external trace information
+ *
+ * This creates an OpenTelemetry context that can be used as a parent
+ * for new spans, allowing distributed traces to continue across process boundaries.
+ *
+ * @param traceId - The trace ID from the external context (32 hex chars)
+ * @param spanId - The span ID from the external context (16 hex chars)
+ * @returns OpenTelemetry context with the remote span context set
+ */
+export function createRemoteSpanContext(traceId: string, spanId: string) {
+  return trace.setSpanContext(ROOT_CONTEXT, {
+    traceId,
+    spanId,
+    traceFlags: 1, // Sampled
+    isRemote: true,
+  });
+}
+
+/**
+ * Run a function with proper OpenTelemetry trace context from an external source
+ *
+ * This is the key function for continuing distributed traces across process boundaries.
+ * Unlike `runWithTraceContext`, this function:
+ * 1. Creates a proper OpenTelemetry span linked to the external trace
+ * 2. Makes that span active for all downstream operations (HTTP calls, DB queries, etc.)
+ * 3. Ensures trace propagation works correctly with HTTP instrumentation
+ *
+ * Use this when receiving messages from Service Bus or other async messaging systems
+ * where you need to continue an existing trace from another service.
+ *
+ * @param externalContext - External trace context containing traceId and optionally spanId
+ * @param spanName - Name for the consumer span
+ * @param fn - Function to run within the trace context
+ * @param options - Optional span configuration
+ * @returns Result of the function
+ *
+ * @example
+ * ```typescript
+ * // In a Service Bus message handler:
+ * const traceparent = message.applicationProperties?.traceparent;
+ * const traceId = extractTraceIdFromTraceparent(traceparent);
+ *
+ * await runWithExternalTraceContext(
+ *   { traceId, correlationId: eventId },
+ *   'process PaymentProcessed',
+ *   async () => {
+ *     // All HTTP calls, DB queries, and logs here will share the same trace ID
+ *     await bookingsApiClient.updatePaymentStatus(bookingId, paymentId, status);
+ *   }
+ * );
+ * ```
+ */
+export async function runWithExternalTraceContext<T>(
+  externalContext: {
+    traceId?: string;
+    spanId?: string;
+    correlationId?: string;
+    eventId?: string;
+    eventType?: string;
+    userId?: string;
+    [key: string]: string | undefined;
+  },
+  spanName: string,
+  fn: () => Promise<T>,
+  options?: {
+    kind?: SpanKind;
+    attributes?: Record<string, string | number | boolean>;
+  }
+): Promise<T> {
+  const tracer = trace.getTracer('@kozy/tracing');
+
+  // Determine parent context - use external traceId/spanId if available
+  let parentContext = ROOT_CONTEXT;
+  if (externalContext.traceId) {
+    // Generate a random spanId if not provided (this is common for Service Bus messages)
+    const spanId = externalContext.spanId || randomUUID().replace(/-/g, '').slice(0, 16);
+    parentContext = createRemoteSpanContext(externalContext.traceId, spanId);
+  }
+
+  // Build span attributes
+  const attributes: Record<string, string | number | boolean> = {
+    ...options?.attributes,
+  };
+  if (externalContext.correlationId) {
+    attributes['correlation.id'] = externalContext.correlationId;
+  }
+  if (externalContext.eventId) {
+    attributes['event.id'] = externalContext.eventId;
+  }
+  if (externalContext.eventType) {
+    attributes['event.type'] = externalContext.eventType;
+  }
+  if (externalContext.userId) {
+    attributes['user.id'] = externalContext.userId;
+  }
+
+  // Create a span with the external trace as parent
+  const span = tracer.startSpan(
+    spanName,
+    {
+      kind: options?.kind ?? SpanKind.CONSUMER,
+      attributes,
+    },
+    parentContext
+  );
+
+  // Run the function within both:
+  // 1. OpenTelemetry context (for span propagation to HTTP/DB instrumentation)
+  // 2. AsyncLocalStorage context (for getCurrentTraceContext() in logging)
+  return otelContext.with(trace.setSpan(parentContext, span), async () => {
+    // Also set AsyncLocalStorage context for logging and getCurrentTraceContext()
+    return asyncLocalStorage.run(
+      {
+        traceId: externalContext.traceId,
+        spanId: span.spanContext().spanId,
+        correlationId: externalContext.correlationId,
+        eventId: externalContext.eventId,
+        eventType: externalContext.eventType,
+        userId: externalContext.userId,
+      },
+      async () => {
+        try {
+          const result = await fn();
+          span.setStatus({ code: SpanStatusCode.OK });
+          return result;
+        } catch (error) {
+          span.setStatus({
+            code: SpanStatusCode.ERROR,
+            message: error instanceof Error ? error.message : 'Unknown error',
+          });
+          span.recordException(error as Error);
+          throw error;
+        } finally {
+          span.end();
+        }
+      }
+    );
+  });
 }
 
 /**
