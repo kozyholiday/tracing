@@ -169,7 +169,7 @@ OTEL_TRACES_SAMPLER=parentbased_traceidratio
 OTEL_TRACES_SAMPLER_ARG=1.0
 
 # Resource attributes
-OTEL_RESOURCE_ATTRIBUTES=deployment.environment=production,service.namespace=kozy
+OTEL_RESOURCE_ATTRIBUTES=deployment.environment.name=production,service.namespace=kozy
 
 # Debug logging
 OTEL_LOG_LEVEL=info  # or debug, error, warn

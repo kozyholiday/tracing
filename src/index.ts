@@ -6,11 +6,7 @@
  * running on Azure AKS.
  */
 
-export {
-  initTracing,
-  shutdownTracing,
-  type TracingConfig,
-} from './core/tracer';
+export { initTracing, shutdownTracing, type TracingConfig } from './core/tracer';
 
 export {
   getCurrentTraceContext,

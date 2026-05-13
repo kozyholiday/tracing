@@ -1,0 +1,21 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "node16",
+    "moduleResolution": "node16",
+    "lib": ["ES2022"],
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "strict": false,
+    "noEmit": true,
+    "resolveJsonModule": true,
+    "paths": {
+      "@kozy/tracing": ["../src/index.ts"],
+      "@kozy/tracing/express": ["../src/http/express.ts"],
+      "@kozy/tracing/service-bus": ["../src/service-bus/index.ts"],
+      "@kozy/tracing/logger": ["../src/logger/index.ts"]
+    },
+    "types": ["node"]
+  },
+  "include": ["./**/*.ts"]
+}
