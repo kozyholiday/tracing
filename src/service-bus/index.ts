@@ -48,22 +48,22 @@ export interface MessageHandlerContext {
 
 /**
  * Wrap Azure Service Bus message handler with distributed tracing
- * 
+ *
  * This wrapper:
  * 1. Extracts trace context from message properties (W3C traceparent)
  * 2. Creates a CONSUMER span linked to the producer span
  * 3. Sets trace context in AsyncLocalStorage
  * 4. Handles errors and records exceptions on the span
  * 5. Sets span status based on message processing result
- * 
+ *
  * @param handler - Message handler function
  * @param options - Handler configuration options
  * @returns Wrapped message handler
- * 
+ *
  * @example
  * ```typescript
  * import { withServiceBusTracing } from '@kozy/tracing/service-bus';
- * 
+ *
  * receiver.subscribe({
  *   processMessage: withServiceBusTracing(async (message, context) => {
  *     // Your message processing logic
@@ -87,7 +87,9 @@ export function withServiceBusTracing<T = unknown>(
     /**
      * Additional span attributes
      */
-    additionalAttributes?: (message: ServiceBusReceivedMessage) => Record<string, string | number | boolean>;
+    additionalAttributes?: (
+      message: ServiceBusReceivedMessage
+    ) => Record<string, string | number | boolean>;
   }
 ): MessageHandler<T> {
   return async (message: ServiceBusReceivedMessage): Promise<T> => {
@@ -179,17 +181,17 @@ export function withServiceBusTracing<T = unknown>(
 
 /**
  * Wrap Service Bus message producer with distributed tracing
- * 
+ *
  * Injects trace context into message properties for distributed tracing.
- * 
+ *
  * @param messageProperties - Message application properties (will be mutated)
  * @param spanName - Name for the producer span
  * @returns Updated message properties
- * 
+ *
  * @example
  * ```typescript
  * import { withServiceBusProducerTracing } from '@kozy/tracing/service-bus';
- * 
+ *
  * const message = {
  *   body: { userId: 123, action: 'created' },
  *   applicationProperties: {
@@ -197,12 +199,12 @@ export function withServiceBusTracing<T = unknown>(
  *     eventId: uuidv4(),
  *   }
  * };
- * 
+ *
  * withServiceBusProducerTracing(
  *   message.applicationProperties,
  *   'publish user.created'
  * );
- * 
+ *
  * await sender.sendMessages(message);
  * ```
  */
@@ -212,6 +214,7 @@ export async function withServiceBusProducerTracing(
 ): Promise<void> {
   await withSpan(
     spanName,
+    // eslint-disable-next-line @typescript-eslint/require-await
     async (span) => {
       // Inject trace context into message properties
       injectTraceIntoServiceBusMessage(messageProperties);
@@ -236,15 +239,15 @@ export async function withServiceBusProducerTracing(
 
 /**
  * Create a tracing-aware Service Bus error handler
- * 
+ *
  * @param onError - Custom error handler function
  * @returns Error handler that records exceptions in traces
- * 
+ *
  * @example
  * ```typescript
  * import { createServiceBusErrorHandler } from '@kozy/tracing/service-bus';
  * import { logger } from '@kozy/tracing/logger';
- * 
+ *
  * receiver.subscribe({
  *   processMessage: withServiceBusTracing(async (message) => {
  *     // Process message

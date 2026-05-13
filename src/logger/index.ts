@@ -43,7 +43,7 @@ export interface LoggerOptions {
 
 /**
  * Create a Pino logger with automatic trace context injection
- * 
+ *
  * The logger automatically enriches every log with:
  * - traceId: OpenTelemetry trace ID from active span
  * - spanId: OpenTelemetry span ID from active span
@@ -53,23 +53,23 @@ export interface LoggerOptions {
  * - userId: User ID (if set in context)
  * - service: Service name
  * - env: Environment
- * 
+ *
  * All logs are output in JSON format (except in development with prettyPrint enabled).
  * This is optimal for Datadog log ingestion.
- * 
+ *
  * @param options - Logger configuration
  * @returns Configured Pino logger instance
- * 
+ *
  * @example
  * ```typescript
  * import { createLogger } from '@kozy/tracing/logger';
- * 
+ *
  * export const logger = createLogger({
  *   service: 'notifications-api',
  *   boundedContext: 'notifications',
  *   level: 'info',
  * });
- * 
+ *
  * // Usage
  * logger.info('User created', { userId: '123', email: 'user@example.com' });
  * logger.error('Failed to send email', { error: err.message, userId: '123' });
@@ -117,16 +117,18 @@ export function createLogger(options: LoggerOptions): pino.Logger {
       // Standard Pino error serializer
       err: pino.stdSerializers.err,
       // Enhanced error serializer for custom error fields
-      error: (error: Error | unknown) => {
+      error: (error: unknown) => {
         if (error instanceof Error) {
           return {
             type: error.name,
             message: error.message,
             stack: error.stack?.split('\n').map((line) => line.trim()),
             // Include common error properties
-            ...(('code' in error) && { code: (error as { code: unknown }).code }),
-            ...(('statusCode' in error) && { statusCode: (error as { statusCode: unknown }).statusCode }),
-            ...(('details' in error) && { details: (error as { details: unknown }).details }),
+            ...('code' in error && { code: (error as { code: unknown }).code }),
+            ...('statusCode' in error && {
+              statusCode: (error as { statusCode: unknown }).statusCode,
+            }),
+            ...('details' in error && { details: (error as { details: unknown }).details }),
           };
         }
         return error;
@@ -157,7 +159,7 @@ export function createLogger(options: LoggerOptions): pino.Logger {
 
 /**
  * Default logger instance
- * 
+ *
  * You can use this directly, but it's recommended to create your own logger
  * with createLogger() so you can specify the service name.
  */
@@ -167,20 +169,20 @@ export const logger = createLogger({
 
 /**
  * Create a child logger with additional context
- * 
+ *
  * Child loggers inherit all configuration from parent and add additional bindings.
- * 
+ *
  * @param parentLogger - Parent logger instance
  * @param bindings - Additional fields to include in all logs from this child
  * @returns Child logger
- * 
+ *
  * @example
  * ```typescript
  * const logger = createLogger({ service: 'api' });
- * 
+ *
  * function handleUser(userId: string) {
  *   const userLogger = createChildLogger(logger, { userId });
- *   
+ *
  *   userLogger.info('Processing user');
  *   // Log includes: { service: 'api', userId: '123', ... }
  * }

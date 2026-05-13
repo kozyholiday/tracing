@@ -2,7 +2,7 @@ import { trace, Span, SpanStatusCode, SpanKind, Context } from '@opentelemetry/a
 
 /**
  * Get the current active span
- * 
+ *
  * @returns Active span or undefined if no span is active
  */
 export function getCurrentSpan(): Span | undefined {
@@ -11,20 +11,17 @@ export function getCurrentSpan(): Span | undefined {
 
 /**
  * Add a single attribute to the current active span
- * 
+ *
  * @param key - Attribute key
  * @param value - Attribute value
- * 
+ *
  * @example
  * ```typescript
  * addSpanAttribute('user.id', userId);
  * addSpanAttribute('order.total', 99.99);
  * ```
  */
-export function addSpanAttribute(
-  key: string,
-  value: string | number | boolean | string[]
-): void {
+export function addSpanAttribute(key: string, value: string | number | boolean | string[]): void {
   const span = getCurrentSpan();
   if (span) {
     span.setAttribute(key, value);
@@ -33,9 +30,9 @@ export function addSpanAttribute(
 
 /**
  * Add multiple attributes to the current active span
- * 
+ *
  * @param attributes - Record of attributes to add
- * 
+ *
  * @example
  * ```typescript
  * addSpanAttributes({
@@ -56,12 +53,12 @@ export function addSpanAttributes(
 
 /**
  * Add an event to the current active span
- * 
+ *
  * Events are timestamped occurrences during a span's lifetime
- * 
+ *
  * @param name - Event name
  * @param attributes - Optional event attributes
- * 
+ *
  * @example
  * ```typescript
  * addSpanEvent('email.sent', { recipient: 'user@example.com' });
@@ -80,10 +77,10 @@ export function addSpanEvent(
 
 /**
  * Record an exception on the current active span
- * 
+ *
  * @param error - Error to record
  * @param attributes - Optional additional attributes
- * 
+ *
  * @example
  * ```typescript
  * try {
@@ -95,7 +92,7 @@ export function addSpanEvent(
  * ```
  */
 export function recordException(
-  error: Error | unknown,
+  error: unknown,
   attributes?: Record<string, string | number | boolean>
 ): void {
   const span = getCurrentSpan();
@@ -109,10 +106,10 @@ export function recordException(
 
 /**
  * Set the status of the current active span
- * 
+ *
  * @param status - Span status (OK, ERROR, UNSET)
  * @param message - Optional status message
- * 
+ *
  * @example
  * ```typescript
  * setSpanStatus(SpanStatusCode.ERROR, 'Payment failed');
@@ -130,15 +127,15 @@ export function setSpanStatus(status: SpanStatusCode, message?: string): void {
 
 /**
  * Create and run a manual span
- * 
+ *
  * This is useful for instrumenting custom operations that aren't automatically traced.
  * The span will automatically end when the function completes.
- * 
+ *
  * @param spanName - Name of the span
  * @param fn - Function to run within the span
  * @param options - Optional span configuration
  * @returns Result of the function
- * 
+ *
  * @example
  * ```typescript
  * const result = await withSpan(
@@ -146,9 +143,9 @@ export function setSpanStatus(status: SpanStatusCode, message?: string): void {
  *   async (span) => {
  *     span.setAttribute('payment.amount', 99.99);
  *     span.setAttribute('payment.currency', 'USD');
- *     
+ *
  *     const result = await paymentGateway.charge();
- *     
+ *
  *     span.addEvent('payment.charged');
  *     return result;
  *   },
@@ -196,21 +193,21 @@ export async function withSpan<T>(
 
 /**
  * Create a span without activating it
- * 
+ *
  * Useful for creating spans that should not be part of the current context.
  * You must manually end these spans.
- * 
+ *
  * @param spanName - Name of the span
  * @param options - Span configuration
  * @returns Created span
- * 
+ *
  * @example
  * ```typescript
  * const span = createSpan('background-task', {
  *   kind: SpanKind.INTERNAL,
  *   attributes: { 'task.id': taskId }
  * });
- * 
+ *
  * try {
  *   await processTask();
  *   span.setStatus({ code: SpanStatusCode.OK });
@@ -231,7 +228,7 @@ export function createSpan(
   }
 ): Span {
   const tracer = trace.getTracer('@kozy/tracing');
-  
+
   return tracer.startSpan(
     spanName,
     {

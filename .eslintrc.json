@@ -22,5 +22,6 @@
   "env": {
     "node": true,
     "es2022": true
-  }
+  },
+  "ignorePatterns": ["dist/", "examples/", "node_modules/", "*.config.js", "*.config.ts"]
 }

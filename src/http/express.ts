@@ -47,27 +47,27 @@ export interface TracingMiddlewareOptions {
 
 /**
  * Create Express middleware for distributed tracing
- * 
+ *
  * This middleware:
  * 1. Extracts or generates correlation ID
  * 2. Extracts trace context from headers (W3C traceparent)
  * 3. Sets trace context in AsyncLocalStorage
  * 4. Adds correlation ID and trace ID to response headers
  * 5. Enriches OpenTelemetry span with request metadata
- * 
+ *
  * Note: The actual span creation is handled by OpenTelemetry's auto-instrumentation.
  * This middleware enhances the span with additional context.
- * 
+ *
  * @param options - Middleware configuration options
  * @returns Express middleware function
- * 
+ *
  * @example
  * ```typescript
  * import express from 'express';
  * import { createTracingMiddleware } from '@kozy/tracing/express';
- * 
+ *
  * const app = express();
- * 
+ *
  * app.use(createTracingMiddleware({
  *   extractUserId: (req) => req.user?.id,
  *   additionalAttributes: (req) => ({
@@ -76,9 +76,7 @@ export interface TracingMiddlewareOptions {
  * }));
  * ```
  */
-export function createTracingMiddleware(
-  options: TracingMiddlewareOptions = {}
-): RequestHandler {
+export function createTracingMiddleware(options: TracingMiddlewareOptions = {}): RequestHandler {
   const {
     correlationIdHeader = 'x-correlation-id',
     generateCorrelationId: shouldGenerateCorrelationId = true,
@@ -90,8 +88,8 @@ export function createTracingMiddleware(
 
   return (req: Request, res: Response, next: NextFunction): void => {
     // Extract or generate correlation ID
-    let correlationId = extractCorrelationId(req.headers as Record<string, string | string[] | undefined>);
-    
+    let correlationId = extractCorrelationId(req.headers);
+
     if (!correlationId && shouldGenerateCorrelationId) {
       correlationId = generateCorrelationId();
     }
@@ -133,7 +131,7 @@ export function createTracingMiddleware(
     const spanAttributes: Record<string, string | number | boolean> = {
       'http.request.method': req.method,
       'http.request.path': req.path,
-      'http.request.route': req.route?.path || req.path,
+      'http.request.route': (req.route as { path?: string } | undefined)?.path ?? req.path,
       'http.request.query': req.url.includes('?') ? req.url.split('?')[1] : '',
     };
 
@@ -214,37 +212,35 @@ export interface ErrorMiddlewareOptions {
 
 /**
  * Create Express error handling middleware
- * 
+ *
  * This middleware:
  * 1. Records exception on active OpenTelemetry span
  * 2. Sets span status to ERROR
  * 3. Logs error with trace context
  * 4. Returns standardized error response
- * 
+ *
  * IMPORTANT: This must be added AFTER all other middleware and routes.
- * 
+ *
  * @param options - Error middleware configuration options
  * @returns Express error middleware function
- * 
+ *
  * @example
  * ```typescript
  * import express from 'express';
  * import { createErrorMiddleware } from '@kozy/tracing/express';
  * import { logger } from '@kozy/tracing/logger';
- * 
+ *
  * const app = express();
- * 
+ *
  * // ... other middleware and routes ...
- * 
+ *
  * app.use(createErrorMiddleware({
  *   logger,
  *   includeStack: process.env.NODE_ENV !== 'production',
  * }));
  * ```
  */
-export function createErrorMiddleware(
-  options: ErrorMiddlewareOptions = {}
-): ErrorRequestHandler {
+export function createErrorMiddleware(options: ErrorMiddlewareOptions = {}): ErrorRequestHandler {
   const {
     logErrors = true,
     includeStack = process.env.NODE_ENV !== 'production',
@@ -252,12 +248,7 @@ export function createErrorMiddleware(
     logger,
   } = options;
 
-  return (
-    err: Error,
-    req: Request,
-    res: Response,
-    _next: NextFunction
-  ): void => {
+  return (err: Error, req: Request, res: Response, _next: NextFunction): void => {
     // Get trace context for logging
     const context = getCurrentTraceContext();
 
@@ -319,17 +310,17 @@ export function createErrorMiddleware(
 
 /**
  * Async handler wrapper to catch errors in async route handlers
- * 
+ *
  * Express doesn't automatically catch errors in async functions,
  * so you need to use this wrapper or manually catch and pass to next().
- * 
+ *
  * @param fn - Async route handler
  * @returns Wrapped route handler
- * 
+ *
  * @example
  * ```typescript
  * import { asyncHandler } from '@kozy/tracing/express';
- * 
+ *
  * app.get('/users/:id', asyncHandler(async (req, res) => {
  *   const user = await userService.findById(req.params.id);
  *   res.json(user);

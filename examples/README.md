@@ -9,6 +9,7 @@ This directory contains example implementations showing how to use the `@kozy/tr
 Express server with distributed tracing for HTTP requests.
 
 **Features:**
+
 - Express middleware integration
 - Automatic correlation ID generation
 - Error handling middleware
@@ -16,6 +17,7 @@ Express server with distributed tracing for HTTP requests.
 - Async error handling
 
 **Run:**
+
 ```bash
 npm install express
 tsx examples/http-api.ts
@@ -32,6 +34,7 @@ curl http://localhost:3000/api/error
 Azure Service Bus message consumer with distributed tracing.
 
 **Features:**
+
 - Service Bus message tracing
 - Trace context extraction from messages
 - Automatic correlation ID handling
@@ -39,12 +42,14 @@ Azure Service Bus message consumer with distributed tracing.
 - Multiple event type handling
 
 **Prerequisites:**
+
 ```bash
 npm install @azure/service-bus @azure/identity
 export SERVICE_BUS_NAMESPACE="your-namespace.servicebus.windows.net"
 ```
 
 **Run:**
+
 ```bash
 tsx examples/service-bus-consumer.ts
 ```
@@ -54,12 +59,14 @@ tsx examples/service-bus-consumer.ts
 Scheduled background job with tracing.
 
 **Features:**
+
 - Batch job tracing
 - Job execution tracking
 - Performance monitoring
 - Error handling for long-running tasks
 
 **Run:**
+
 ```bash
 tsx examples/cron-job.ts
 ```
@@ -102,11 +109,12 @@ services:
       - DD_OTLP_CONFIG_RECEIVER_PROTOCOLS_HTTP_ENDPOINT=0.0.0.0:4318
       - DD_OTLP_CONFIG_RECEIVER_PROTOCOLS_GRPC_ENDPOINT=0.0.0.0:4317
     ports:
-      - "4318:4318"  # OTLP HTTP
-      - "4317:4317"  # OTLP gRPC
+      - '4318:4318' # OTLP HTTP
+      - '4317:4317' # OTLP gRPC
 ```
 
 Start the agent:
+
 ```bash
 export DD_API_KEY=your-datadog-api-key
 docker-compose up -d
@@ -123,18 +131,23 @@ docker-compose up -d
 ## Key Concepts Demonstrated
 
 ### Correlation IDs
+
 All examples show how correlation IDs flow through the system:
+
 - HTTP: `x-correlation-id` header
 - Service Bus: `correlationId` message property
 - Logs: Automatically included via mixin
 
 ### Trace Context Propagation
+
 - HTTP: W3C `traceparent` header (automatic)
 - Service Bus: Manual injection/extraction
 - AsyncLocalStorage: Automatic across async operations
 
 ### Structured Logging
+
 All logs include:
+
 - `traceId`: OpenTelemetry trace ID
 - `spanId`: Current span ID
 - `correlationId`: Business correlation ID
@@ -142,6 +155,7 @@ All logs include:
 - Custom context fields
 
 ### Error Handling
+
 - Exceptions recorded on spans
 - Span status set to ERROR
 - Errors logged with full context

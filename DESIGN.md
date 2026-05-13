@@ -7,26 +7,30 @@ This document summarizes the design decisions, patterns reused from the notifica
 ## Patterns Reused from Notifications Service
 
 ### 1. **AsyncLocalStorage for Trace Context**
+
 - **Source**: `shared/utils/src/logger/trace-context.ts`
 - **Reused in**: `src/core/trace-context.ts`
 - **Enhancement**: Added more context fields (requestId, userId) and helper functions for HTTP and Service Bus
 
 ### 2. **Pino Logger with Mixin**
+
 - **Source**: `shared/utils/src/logger/index.ts`
 - **Reused in**: `src/logger/index.ts`
 - **Enhancement**: Simplified configuration, better TypeScript types, removed file logging (prefer container logs)
 
 ### 3. **OpenTelemetry OTLP Export to Datadog**
+
 - **Source**: `shared/utils/src/tracing/otel.ts`
 - **Reused in**: `src/core/tracer.ts`
-- **Enhancement**: 
+- **Enhancement**:
   - Support for both HTTP and gRPC OTLP
-  - Better environment variable handling (OTEL_* standard)
+  - Better environment variable handling (OTEL\_\* standard)
   - Kubernetes resource detection
   - Configurable sampling
   - More instrumentation options
 
 ### 4. **Service Bus Message Tracing**
+
 - **Source**: `shared/utils/src/tracing/otel.ts` (`withConsumeSpan`)
 - **Reused in**: `src/service-bus/index.ts` (`withServiceBusTracing`)
 - **Enhancement**:
@@ -36,6 +40,7 @@ This document summarizes the design decisions, patterns reused from the notifica
   - Error handler wrapper
 
 ### 5. **W3C Trace Context Extraction**
+
 - **Source**: `shared/utils/src/logger/trace-context.ts` (`extractTraceIdFromTraceparent`)
 - **Reused in**: `src/core/trace-context.ts`
 - **Enhancement**: Added injection functions for HTTP and Service Bus
@@ -43,22 +48,27 @@ This document summarizes the design decisions, patterns reused from the notifica
 ## What Was Standardized
 
 ### Configuration
-- **Before**: Mix of custom env vars and OTEL_* vars
-- **After**: Full OTEL_* standard support with Datadog fallbacks (DD_*)
+
+- **Before**: Mix of custom env vars and OTEL\_\* vars
+- **After**: Full OTEL*\* standard support with Datadog fallbacks (DD*\*)
 
 ### API Surface
+
 - **Before**: Functions spread across utils package
 - **After**: Organized by domain (core, http, service-bus, logger)
 
 ### TypeScript Types
+
 - **Before**: Some any types, inconsistent interfaces
 - **After**: Strict typing, comprehensive interfaces, JSDoc comments
 
 ### Error Handling
+
 - **Before**: Basic error logging
 - **After**: Structured error recording on spans, error middleware, consistent patterns
 
 ### Documentation
+
 - **Before**: Limited inline comments
 - **After**: Comprehensive README, API reference, examples, migration guide
 
@@ -69,6 +79,7 @@ This document summarizes the design decisions, patterns reused from the notifica
 **Decision**: Create standalone `@kozy/tracing` package instead of extending `@kozy/utils`
 
 **Rationale**:
+
 - **Reusability**: Can be used across all bounded contexts
 - **Versioning**: Independent release cycle
 - **Clarity**: Clear separation of concerns
@@ -79,6 +90,7 @@ This document summarizes the design decisions, patterns reused from the notifica
 **Decision**: Use OpenTelemetry instead of Datadog SDK directly
 
 **Rationale**:
+
 - **Vendor-neutral**: Switch APM backends without code changes
 - **Industry standard**: CNCF graduated project
 - **Auto-instrumentation**: HTTP, PostgreSQL, Redis automatically traced
@@ -89,6 +101,7 @@ This document summarizes the design decisions, patterns reused from the notifica
 **Decision**: Use AsyncLocalStorage for context propagation instead of manual passing
 
 **Rationale**:
+
 - **Automatic**: Context flows through async operations automatically
 - **Non-invasive**: No need to modify function signatures
 - **Framework-agnostic**: Works with any async pattern
@@ -99,6 +112,7 @@ This document summarizes the design decisions, patterns reused from the notifica
 **Decision**: Use Pino instead of Winston or other loggers
 
 **Rationale**:
+
 - **Performance**: Fastest JSON logger for Node.js (~10x faster than Winston)
 - **Structured**: Native JSON output for Datadog
 - **Low overhead**: Minimal CPU/memory impact
@@ -109,6 +123,7 @@ This document summarizes the design decisions, patterns reused from the notifica
 **Decision**: Support both OTLP protocols
 
 **Rationale**:
+
 - **Flexibility**: Some environments prefer gRPC (lower overhead)
 - **Compatibility**: HTTP works everywhere (firewalls, proxies)
 - **Datadog support**: Agent supports both
@@ -129,6 +144,7 @@ npm install @kozy/tracing
 ### Step 2: Update Initialization
 
 **Before** (`shared/utils/src/tracing/index.ts`):
+
 ```typescript
 // Auto-initialization on import
 import { initializeTracing } from './otel';
@@ -136,6 +152,7 @@ initializeTracing();
 ```
 
 **After** (`apps/event-consumer/src/index.ts`):
+
 ```typescript
 import { initTracing } from '@kozy/tracing';
 
@@ -152,6 +169,7 @@ import { startConsumer } from './consumer';
 ### Step 3: Update Logger
 
 **Before**:
+
 ```typescript
 import { createLogger } from '@kozy/utils';
 
@@ -159,6 +177,7 @@ const logger = createLogger({ service: 'notifications-event-consumer' });
 ```
 
 **After**:
+
 ```typescript
 import { createLogger } from '@kozy/tracing/logger';
 
@@ -172,20 +191,18 @@ export const logger = createLogger({
 ### Step 4: Update Service Bus Consumer
 
 **Before**:
+
 ```typescript
 import { withConsumeSpan } from '@kozy/utils/tracing';
 import { runWithTraceContext, setTraceContext } from '@kozy/utils';
 
-await withConsumeSpan(
-  message.applicationProperties,
-  { 'event.type': eventType },
-  async () => {
-    await handler(message);
-  }
-);
+await withConsumeSpan(message.applicationProperties, { 'event.type': eventType }, async () => {
+  await handler(message);
+});
 ```
 
 **After**:
+
 ```typescript
 import { withServiceBusTracing } from '@kozy/tracing/service-bus';
 
@@ -202,47 +219,50 @@ receiver.subscribe({
 
 **Search and replace across codebase**:
 
-| Before | After |
-|--------|-------|
-| `import { createLogger } from '@kozy/utils'` | `import { createLogger } from '@kozy/tracing/logger'` |
+| Before                                                  | After                                                               |
+| ------------------------------------------------------- | ------------------------------------------------------------------- |
+| `import { createLogger } from '@kozy/utils'`            | `import { createLogger } from '@kozy/tracing/logger'`               |
 | `import { withConsumeSpan } from '@kozy/utils/tracing'` | `import { withServiceBusTracing } from '@kozy/tracing/service-bus'` |
-| `import { runWithTraceContext } from '@kozy/utils'` | `import { runWithTraceContext } from '@kozy/tracing'` |
-| `import { getCurrentTraceContext } from '@kozy/utils'` | `import { getCurrentTraceContext } from '@kozy/tracing'` |
-| `import { withSpan } from '@kozy/utils/tracing'` | `import { withSpan } from '@kozy/tracing'` |
+| `import { runWithTraceContext } from '@kozy/utils'`     | `import { runWithTraceContext } from '@kozy/tracing'`               |
+| `import { getCurrentTraceContext } from '@kozy/utils'`  | `import { getCurrentTraceContext } from '@kozy/tracing'`            |
+| `import { withSpan } from '@kozy/utils/tracing'`        | `import { withSpan } from '@kozy/tracing'`                          |
 
 ### Step 6: Update Environment Variables
 
 **Add to Kubernetes deployment**:
+
 ```yaml
 env:
   # Required
   - name: OTEL_SERVICE_NAME
-    value: "notifications-event-consumer"
-  
+    value: 'notifications-event-consumer'
+
   # Recommended
   - name: OTEL_DEPLOYMENT_ENVIRONMENT
-    value: "production"
+    value: 'production'
   - name: OTEL_SERVICE_VERSION
-    value: "1.0.0"
+    value: '1.0.0'
   - name: OTEL_EXPORTER_OTLP_ENDPOINT
-    value: "http://$(HOST_IP):4318"
-  
+    value: 'http://$(HOST_IP):4318'
+
   # Optional (defaults work)
   - name: LOG_LEVEL
-    value: "info"
+    value: 'info'
   - name: LOG_FORMAT
-    value: "json"
+    value: 'json'
 ```
 
 ### Step 7: Test
 
 1. **Run locally**:
+
    ```bash
    npm run build
    npm start
    ```
 
 2. **Check logs** - should include traceId and correlationId:
+
    ```json
    {
      "level": "info",
@@ -266,11 +286,11 @@ env:
 
 ### API Changes
 
-| Old API | New API | Notes |
-|---------|---------|-------|
+| Old API                             | New API                          | Notes                                         |
+| ----------------------------------- | -------------------------------- | --------------------------------------------- |
 | `withConsumeSpan(props, attrs, fn)` | `withServiceBusTracing(handler)` | Different signature, handler receives context |
-| Auto-initialization on import | `initTracing()` | Must call explicitly |
-| `initializeTracing()` | `initTracing()` | Renamed for consistency |
+| Auto-initialization on import       | `initTracing()`                  | Must call explicitly                          |
+| `initializeTracing()`               | `initTracing()`                  | Renamed for consistency                       |
 
 ### Behavior Changes
 
@@ -383,6 +403,7 @@ env:
 ## Questions & Feedback
 
 For questions, issues, or feedback:
+
 1. Open an issue in the repository
 2. Contact Platform Team on Slack
 3. Submit a pull request for improvements

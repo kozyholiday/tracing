@@ -1,17 +1,16 @@
 import { NodeSDK } from '@opentelemetry/sdk-node';
 import { OTLPTraceExporter as OTLPHttpTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
 import { OTLPTraceExporter as OTLPGrpcTraceExporter } from '@opentelemetry/exporter-trace-otlp-grpc';
-import { Resource } from '@opentelemetry/resources';
-import {
-  SEMRESATTRS_SERVICE_NAME,
-  SEMRESATTRS_SERVICE_VERSION,
-  SEMRESATTRS_DEPLOYMENT_ENVIRONMENT,
-  CLOUDPROVIDERVALUES_AZURE,
-  SEMRESATTRS_CLOUD_PROVIDER,
-  SEMRESATTRS_CLOUD_REGION,
-} from '@opentelemetry/semantic-conventions';
+import { defaultResource, resourceFromAttributes } from '@opentelemetry/resources';
 import { getNodeAutoInstrumentations } from '@opentelemetry/auto-instrumentations-node';
 import { diag, DiagConsoleLogger, DiagLogLevel } from '@opentelemetry/api';
+
+const ATTR_SERVICE_NAME = 'service.name';
+const ATTR_SERVICE_VERSION = 'service.version';
+const ATTR_DEPLOYMENT_ENVIRONMENT_NAME = 'deployment.environment.name';
+const ATTR_CLOUD_PROVIDER = 'cloud.provider';
+const ATTR_CLOUD_REGION = 'cloud.region';
+const CLOUD_PROVIDER_AZURE = 'azure';
 
 let sdk: NodeSDK | null = null;
 let isInitialized = false;
@@ -101,14 +100,14 @@ export interface TracingConfig {
 
 /**
  * Initialize OpenTelemetry tracing with Datadog-compatible configuration
- * 
+ *
  * This function sets up distributed tracing for your service using OpenTelemetry.
  * Traces are exported to Datadog Agent via OTLP (OpenTelemetry Protocol).
- * 
+ *
  * @example
  * ```typescript
  * import { initTracing } from '@kozy/tracing';
- * 
+ *
  * initTracing({
  *   serviceName: 'notifications-api',
  *   environment: 'production',
@@ -116,7 +115,7 @@ export interface TracingConfig {
  *   samplingRatio: 1.0,
  * });
  * ```
- * 
+ *
  * Environment variables (OpenTelemetry standard):
  * - OTEL_SDK_DISABLED: Disable tracing
  * - OTEL_SERVICE_NAME: Service name
@@ -129,13 +128,13 @@ export interface TracingConfig {
  * - OTEL_TRACES_SAMPLER_ARG: Sampler argument (e.g., 0.1 for 10% sampling)
  * - OTEL_RESOURCE_ATTRIBUTES: Additional resource attributes (k=v,k2=v2)
  * - OTEL_LOG_LEVEL: Log level (none, error, warn, info, debug, verbose, all)
- * 
+ *
  * Datadog-specific environment variables:
  * - DD_ENV: Environment tag (used if OTEL_DEPLOYMENT_ENVIRONMENT not set)
  * - DD_VERSION: Version tag (used if OTEL_SERVICE_VERSION not set)
  * - DD_SERVICE: Service name (used if OTEL_SERVICE_NAME not set)
  * - DD_AGENT_HOST: Datadog Agent host (used to construct OTLP endpoint if not set)
- * 
+ *
  * Kubernetes detection:
  * The package automatically detects Kubernetes environment and adds:
  * - k8s.namespace.name
@@ -161,8 +160,7 @@ export function initTracing(config: TracingConfig = {}): void {
   // Enable debug logging if requested
   const debugEnabled =
     config.debug ??
-    (process.env.OTEL_LOG_LEVEL === 'debug' ||
-     process.env.OTEL_LOG_LEVEL === 'all');
+    (process.env.OTEL_LOG_LEVEL === 'debug' || process.env.OTEL_LOG_LEVEL === 'all');
   if (debugEnabled) {
     diag.setLogger(new DiagConsoleLogger(), DiagLogLevel.DEBUG);
   }
@@ -216,7 +214,8 @@ export function initTracing(config: TracingConfig = {}): void {
     otlpEndpoint = `http://localhost:${port}`;
   }
 
-  const otlpProtocol = config.otlpProtocol ?? (process.env.OTEL_EXPORTER_OTLP_PROTOCOL as 'http' | 'grpc') ?? 'http';
+  const otlpProtocol =
+    config.otlpProtocol ?? (process.env.OTEL_EXPORTER_OTLP_PROTOCOL as 'http' | 'grpc') ?? 'http';
 
   const samplingRatio =
     config.samplingRatio ?? parseFloat(process.env.OTEL_TRACES_SAMPLER_ARG ?? '1.0');
@@ -237,23 +236,24 @@ export function initTracing(config: TracingConfig = {}): void {
 
   // Build resource attributes
   const resourceAttributes: Record<string, string> = {
-    [SEMRESATTRS_SERVICE_NAME]: serviceName,
-    [SEMRESATTRS_SERVICE_VERSION]: serviceVersion,
-    [SEMRESATTRS_DEPLOYMENT_ENVIRONMENT]: environment,
+    [ATTR_SERVICE_NAME]: serviceName,
+    [ATTR_SERVICE_VERSION]: serviceVersion,
+    [ATTR_DEPLOYMENT_ENVIRONMENT_NAME]: environment,
     'service.namespace': serviceNamespace,
-    [SEMRESATTRS_CLOUD_PROVIDER]: CLOUDPROVIDERVALUES_AZURE,
+    [ATTR_CLOUD_PROVIDER]: CLOUD_PROVIDER_AZURE,
   };
 
   // Add cloud region if available
   if (cloudRegion) {
-    resourceAttributes[SEMRESATTRS_CLOUD_REGION] = cloudRegion;
+    resourceAttributes[ATTR_CLOUD_REGION] = cloudRegion;
   }
 
   // Kubernetes detection from environment variables
   // These are typically injected via Downward API in Kubernetes
   if (process.env.KUBERNETES_SERVICE_HOST) {
     if (process.env.K8S_NAMESPACE_NAME ?? process.env.NAMESPACE) {
-      resourceAttributes['k8s.namespace.name'] = process.env.K8S_NAMESPACE_NAME ?? process.env.NAMESPACE!;
+      resourceAttributes['k8s.namespace.name'] =
+        process.env.K8S_NAMESPACE_NAME ?? process.env.NAMESPACE!;
     }
     if (process.env.K8S_POD_NAME ?? process.env.HOSTNAME) {
       resourceAttributes['k8s.pod.name'] = process.env.K8S_POD_NAME ?? process.env.HOSTNAME!;
@@ -262,7 +262,8 @@ export function initTracing(config: TracingConfig = {}): void {
       resourceAttributes['k8s.node.name'] = process.env.K8S_NODE_NAME ?? process.env.NODE_NAME!;
     }
     if (process.env.K8S_DEPLOYMENT_NAME ?? process.env.DEPLOYMENT_NAME) {
-      resourceAttributes['k8s.deployment.name'] = process.env.K8S_DEPLOYMENT_NAME ?? process.env.DEPLOYMENT_NAME!;
+      resourceAttributes['k8s.deployment.name'] =
+        process.env.K8S_DEPLOYMENT_NAME ?? process.env.DEPLOYMENT_NAME!;
     }
   }
 
@@ -283,7 +284,7 @@ export function initTracing(config: TracingConfig = {}): void {
   }
 
   // Create resource
-  const resource = Resource.default().merge(new Resource(resourceAttributes));
+  const resource = defaultResource().merge(resourceFromAttributes(resourceAttributes));
 
   // Configure auto-instrumentation
   const instrumentationConfig = config.instrumentationConfig ?? {};
@@ -324,7 +325,7 @@ export function initTracing(config: TracingConfig = {}): void {
       enabled: true,
       enhancedDatabaseReporting: true,
     },
-    '@opentelemetry/instrumentation-redis-4': {
+    '@opentelemetry/instrumentation-redis': {
       enabled: true,
     },
     '@opentelemetry/instrumentation-dns': {
@@ -348,9 +349,8 @@ export function initTracing(config: TracingConfig = {}): void {
   console.log('[OpenTelemetry] Tracing initialized successfully');
 
   // Graceful shutdown
-  const shutdownHandler = async () => {
-    await shutdownTracing();
-    process.exit(0);
+  const shutdownHandler = () => {
+    void shutdownTracing().finally(() => process.exit(0));
   };
 
   process.on('SIGTERM', shutdownHandler);
@@ -359,7 +359,7 @@ export function initTracing(config: TracingConfig = {}): void {
 
 /**
  * Shutdown OpenTelemetry and flush pending traces
- * 
+ *
  * Call this before your application exits to ensure all traces are sent.
  */
 export async function shutdownTracing(): Promise<void> {
